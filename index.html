@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Whiteboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
+        #toolbar button, #toolbar input[type="color"] { padding: 5px; }
+        canvas { border: 1px solid #ccc; cursor: crosshair; }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button onclick="setTool('pen')">Pen</button>
+        <button onclick="setTool('eraser')">Eraser</button>
+        <button onclick="drawShape('circle')">Circle</button>
+        <button onclick="drawShape('triangle')">Triangle</button>
+        <input type="color" id="colorPicker" value="#000000" onchange="setColor(this.value)">
+    </div>
+    <canvas id="whiteboard" width="800" height="600"></canvas>
+
+    <!-- Firebase JS SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+
+    <script>
+        // Initialize Firebase with your configuration
+        const firebaseConfig = {
+        apiKey: "AIzaSyCWqM1AWDgRBg87KEwQvcvYh4W66WEP6vE",
+        authDomain: "h-board.firebaseapp.com",
+        projectId: "h-board",
+        storageBucket: "h-board.firebasestorage.app",
+        messagingSenderId: "904018771230",
+        appId: "1:904018771230:web:2462533833dc0c67aadd0f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const canvas = document.getElementById('whiteboard');
+        const ctx = canvas.getContext('2d');
+        let drawing = false, tool = 'pen', color = '#000000';
+
+        // Set up event listeners for drawing
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDraw);
+        canvas.addEventListener('mouseout', endDraw);
+
+        function setTool(selectedTool) { 
+            tool = selectedTool; 
+        }
+
+        function setColor(selectedColor) { 
+            color = selectedColor; 
+            ctx.strokeStyle = color; 
+        }
+
+        function startDraw(e) {
+            drawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            
+            ctx.lineWidth = tool === 'eraser' ? 20 : 2; // Set line width based on the tool
+            ctx.strokeStyle = color;
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            
+            saveDrawingData(e.offsetX, e.offsetY);  // Save drawing data to Firebase
+        }
+
+        function endDraw() { 
+            drawing = false; 
+            ctx.closePath(); 
+        }
+
+        function drawShape(shape) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            if (shape === 'circle') {
+                ctx.arc(150, 75, 50, 0, Math.PI * 2);
+            } else if (shape === 'triangle') {
+                ctx.moveTo(100, 100);
+                ctx.lineTo(150, 50);
+                ctx.lineTo(200, 100);
+                ctx.closePath();
+            }
+            ctx.stroke();
+            saveShapeData(shape);
+        }
+
+        function saveDrawingData(x, y) {
+            db.collection("whiteboard").add({ type: "draw", x, y, color, tool });
+        }
+
+        function saveShapeData(shape) {
+            db.collection("whiteboard").add({ type: "shape", shape, color });
+        }
+
+        db.collection("whiteboard").onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data();
+                if (data.type === "draw") {
+                    drawFromData(data);
+                } else if (data.type === "shape") {
+                    drawShapeFromData(data);
+                }
+            });
+        });
+
+        function drawFromData(data) {
+            ctx.beginPath();
+            ctx.moveTo(data.x, data.y);
+            ctx.lineTo(data.x + 1, data.y + 1);
+            ctx.strokeStyle = data.color;
+            ctx.lineWidth = data.tool === 'eraser' ? 20 : 2;
+            ctx.stroke();
+        }
+
+        function drawShapeFromData(data) {
+            ctx.beginPath();
+            ctx.strokeStyle = data.color;
+            if (data.shape === 'circle') {
+                ctx.arc(150, 75, 50, 0, Math.PI * 2);
+            } else if (data.shape === 'triangle') {
+                ctx.moveTo(100, 100);
+                ctx.lineTo(150, 50);
+                ctx.lineTo(200, 100);
+                ctx.closePath();
+            }
+            ctx.stroke();
+        }
+    </script>
+</body>
+</html>

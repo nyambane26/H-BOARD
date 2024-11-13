@@ -60,20 +60,25 @@
         }
 
         function startDraw(e) {
-            drawing = true;
-            ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
+            if (tool === 'pen' || tool === 'eraser') {
+                drawing = true;
+                ctx.beginPath();
+                ctx.moveTo(e.offsetX, e.offsetY);
+            }
         }
 
         function draw(e) {
             if (!drawing) return;
-            
+
+            // Handle drawing with pen and eraser
             ctx.lineWidth = tool === 'eraser' ? 20 : 2; // Set line width based on the tool
             ctx.strokeStyle = color;
             ctx.lineTo(e.offsetX, e.offsetY);
             ctx.stroke();
-            
-            saveDrawingData(e.offsetX, e.offsetY);  // Save drawing data to Firebase
+
+            if (tool === 'pen') {
+                saveDrawingData(e.offsetX, e.offsetY);  // Save drawing data to Firebase
+            }
         }
 
         function endDraw() {

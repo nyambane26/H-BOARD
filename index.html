@@ -15,8 +15,8 @@
     <div id="toolbar">
         <button onclick="setTool('pen')">Pen</button>
         <button onclick="setTool('eraser')">Eraser</button>
-        <button onclick="drawShape('circle')">Circle</button>
-        <button onclick="drawShape('triangle')">Triangle</button>
+        <button onclick="setTool('circle')">Circle</button>
+        <button onclick="setTool('triangle')">Triangle</button>
         <input type="color" id="colorPicker" value="#000000" onchange="setColor(this.value)">
     </div>
     <canvas id="whiteboard" width="800" height="600"></canvas>
@@ -28,12 +28,12 @@
     <script>
         // Initialize Firebase with your configuration
         const firebaseConfig = {
-        apiKey: "AIzaSyCWqM1AWDgRBg87KEwQvcvYh4W66WEP6vE",
-        authDomain: "h-board.firebaseapp.com",
-        projectId: "h-board",
-        storageBucket: "h-board.firebasestorage.app",
-        messagingSenderId: "904018771230",
-        appId: "1:904018771230:web:2462533833dc0c67aadd0f"
+            apiKey: "AIzaSyCWqM1AWDgRBg87KEwQvcvYh4W66WEP6vE",
+            authDomain: "h-board.firebaseapp.com",
+            projectId: "h-board",
+            storageBucket: "h-board.firebasestorage.app",
+            messagingSenderId: "904018771230",
+            appId: "1:904018771230:web:2462533833dc0c67aadd0f"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -41,20 +41,22 @@
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
         let drawing = false, tool = 'pen', color = '#000000';
+        let shapePosition = { x: null, y: null }; // Stores the position for shapes
 
         // Set up event listeners for drawing
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', endDraw);
         canvas.addEventListener('mouseout', endDraw);
+        canvas.addEventListener('click', handleCanvasClick); // Added for dynamic shape placement
 
-        function setTool(selectedTool) { 
-            tool = selectedTool; 
+        function setTool(selectedTool) {
+            tool = selectedTool;
         }
 
-        function setColor(selectedColor) { 
-            color = selectedColor; 
-            ctx.strokeStyle = color; 
+        function setColor(selectedColor) {
+            color = selectedColor;
+            ctx.strokeStyle = color;
         }
 
         function startDraw(e) {
@@ -74,32 +76,40 @@
             saveDrawingData(e.offsetX, e.offsetY);  // Save drawing data to Firebase
         }
 
-        function endDraw() { 
-            drawing = false; 
-            ctx.closePath(); 
+        function endDraw() {
+            drawing = false;
+            ctx.closePath();
+        }
+
+        // Handle clicks on the canvas for drawing shapes
+        function handleCanvasClick(e) {
+            if (tool === 'circle' || tool === 'triangle') {
+                shapePosition = { x: e.offsetX, y: e.offsetY };
+                drawShape(tool);  // Draw the shape at the clicked position
+            }
         }
 
         function drawShape(shape) {
             ctx.beginPath();
             ctx.strokeStyle = color;
             if (shape === 'circle') {
-                ctx.arc(150, 75, 50, 0, Math.PI * 2);
+                ctx.arc(shapePosition.x, shapePosition.y, 50, 0, Math.PI * 2);  // Draw circle at clicked position
             } else if (shape === 'triangle') {
-                ctx.moveTo(100, 100);
-                ctx.lineTo(150, 50);
-                ctx.lineTo(200, 100);
+                ctx.moveTo(shapePosition.x - 50, shapePosition.y + 50);
+                ctx.lineTo(shapePosition.x, shapePosition.y - 50);  // Draw triangle
+                ctx.lineTo(shapePosition.x + 50, shapePosition.y + 50);
                 ctx.closePath();
             }
             ctx.stroke();
-            saveShapeData(shape);
+            saveShapeData(shape, shapePosition.x, shapePosition.y);
         }
 
         function saveDrawingData(x, y) {
             db.collection("whiteboard").add({ type: "draw", x, y, color, tool });
         }
 
-        function saveShapeData(shape) {
-            db.collection("whiteboard").add({ type: "shape", shape, color });
+        function saveShapeData(shape, x, y) {
+            db.collection("whiteboard").add({ type: "shape", shape, color, x, y });
         }
 
         db.collection("whiteboard").onSnapshot((snapshot) => {
@@ -126,11 +136,11 @@
             ctx.beginPath();
             ctx.strokeStyle = data.color;
             if (data.shape === 'circle') {
-                ctx.arc(150, 75, 50, 0, Math.PI * 2);
+                ctx.arc(data.x, data.y, 50, 0, Math.PI * 2);  // Draw circle at saved position
             } else if (data.shape === 'triangle') {
-                ctx.moveTo(100, 100);
-                ctx.lineTo(150, 50);
-                ctx.lineTo(200, 100);
+                ctx.moveTo(data.x - 50, data.y + 50);
+                ctx.lineTo(data.x, data.y - 50);  // Draw triangle
+                ctx.lineTo(data.x + 50, data.y + 50);
                 ctx.closePath();
             }
             ctx.stroke();
